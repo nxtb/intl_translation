@@ -14,72 +14,68 @@ import 'package:petitparser/petitparser.dart';
 /// The "parse" method will return a Success or Failure object which responds
 /// to "value".
 class IcuParser {
-  Parser get openCurly => char('{');
+  get openCurly => char("{");
 
-  Parser get closeCurly => char('}');
-  Parser get quotedCurly => (string("'{'") | string("'}'")).map((x) => x[1]);
+  get closeCurly => char("}");
+  get quotedCurly => (string("'{'") | string("'}'")).map((x) => x[1]);
 
-  Parser get icuEscapedText => quotedCurly | twoSingleQuotes;
-  Parser get curly => (openCurly | closeCurly);
-  Parser get notAllowedInIcuText => curly | char('<');
-  Parser get icuText => notAllowedInIcuText.neg();
-  Parser get notAllowedInNormalText => char('{');
-  Parser get normalText => notAllowedInNormalText.neg();
-  Parser get messageText =>
-      (icuEscapedText | icuText).plus().map((x) => x.join());
-  Parser get nonIcuMessageText => normalText.plus().map((x) => x.join());
-  Parser get twoSingleQuotes => string("''").map((x) => "'");
-  Parser get number => digit().plus().flatten().trim().map(int.parse);
-  Parser get id => (letter() & (word() | char('_')).star()).flatten().trim();
-  Parser get comma => char(',').trim();
+  get icuEscapedText => quotedCurly | twoSingleQuotes;
+  get curly => (openCurly | closeCurly);
+  get notAllowedInIcuText => curly | char("<");
+  get icuText => notAllowedInIcuText.neg();
+  get notAllowedInNormalText => char("{");
+  get normalText => notAllowedInNormalText.neg();
+  get messageText => (icuEscapedText | icuText).plus().map((x) => x.join());
+  get nonIcuMessageText => normalText.plus().map((x) => x.join());
+  get twoSingleQuotes => string("''").map((x) => "'");
+  get number => digit().plus().flatten().trim().map(int.parse);
+  get id => (letter() & (word() | char("_")).star()).flatten().trim();
+  get comma => char(",").trim();
 
   /// Given a list of possible keywords, return a rule that accepts any of them.
   /// e.g., given ["male", "female", "other"], accept any of them.
-  Parser asKeywords(List<String> list) =>
-      list.map(string).cast<Parser>().reduce((a, b) => a | b).flatten().trim();
+  asKeywords(list) => list.map(string).reduce((a, b) => a | b).flatten().trim();
 
-  Parser get pluralKeyword => asKeywords(
-      ['=0', '=1', '=2', 'zero', 'one', 'two', 'few', 'many', 'other']);
-  Parser get genderKeyword => asKeywords(['female', 'male', 'other']);
+  get pluralKeyword => asKeywords(
+      ["=0", "=1", "=2", "zero", "one", "two", "few", "many", "other"]);
+  get genderKeyword => asKeywords(["female", "male", "other"]);
 
   var interiorText = undefined();
 
-  Parser get preface => (openCurly & id & comma).map((values) => values[1]);
+  get preface => (openCurly & id & comma).map((values) => values[1]);
 
-  Parser get pluralLiteral => string('plural');
-  Parser get pluralClause =>
-      (pluralKeyword & openCurly & interiorText & closeCurly)
-          .trim()
-          .map((result) => [result[0], result[2]]);
-  Parser get plural =>
+  get pluralLiteral => string("plural");
+  get pluralClause => (pluralKeyword & openCurly & interiorText & closeCurly)
+      .trim()
+      .map((result) => [result[0], result[2]]);
+  get plural =>
       preface & pluralLiteral & comma & pluralClause.plus() & closeCurly;
-  Parser get intlPlural =>
-      plural.map((values) => Plural.from(values.first, values[3], null));
+  get intlPlural =>
+      plural.map((values) => new Plural.from(values.first, values[3], null));
 
-  Parser get selectLiteral => string('select');
-  Parser get genderClause =>
-      (genderKeyword & openCurly & interiorText & closeCurly)
-          .trim()
-          .map((result) => [result[0], result[2]]);
-  Parser get gender =>
+  get selectLiteral => string("select");
+  get genderClause => (genderKeyword & openCurly & interiorText & closeCurly)
+      .trim()
+      .map((result) => [result[0], result[2]]);
+  get gender =>
       preface & selectLiteral & comma & genderClause.plus() & closeCurly;
-  Parser get intlGender =>
-      gender.map((values) => Gender.from(values.first, values[3], null));
-  Parser get selectClause =>
+  get intlGender =>
+      gender.map((values) => new Gender.from(values.first, values[3], null));
+  get selectClause =>
       (id & openCurly & interiorText & closeCurly).map((x) => [x.first, x[2]]);
-  Parser get generalSelect =>
+  get generalSelect =>
       preface & selectLiteral & comma & selectClause.plus() & closeCurly;
-  Parser get intlSelect =>
-      generalSelect.map((values) => Select.from(values.first, values[3], null));
+  get intlSelect => generalSelect
+      .map((values) => new Select.from(values.first, values[3], null));
 
-  Parser get pluralOrGenderOrSelect => intlPlural | intlGender | intlSelect;
+  get pluralOrGenderOrSelect => intlPlural | intlGender | intlSelect;
 
-  Parser get contents => pluralOrGenderOrSelect | parameter | messageText;
-  Parser get simpleText => (nonIcuMessageText | parameter | openCurly).plus();
-  Parser get empty => epsilon().map((_) => '');
+  get contents => pluralOrGenderOrSelect | parameter | messageText;
+  get simpleText => (nonIcuMessageText | parameter | openCurly).plus();
+  get empty => epsilon().map((_) => '');
 
-  Parser get parameter => (openCurly & id & closeCurly)
-      .map((param) => VariableSubstitution.named(param[1], null));
+  get parameter => (openCurly & id & closeCurly)
+      .map((param) => new VariableSubstitution.named(param[1], null));
 
   /// The primary entry point for parsing. Accepts a string and produces
   /// a parsed representation of it as a Message.
@@ -91,7 +87,7 @@ class IcuParser {
   Parser get nonIcuMessage =>
       (simpleText | empty).map((chunk) => Message.from(chunk, null));
 
-  Parser get stuff => (pluralOrGenderOrSelect | empty)
+  get stuff => (pluralOrGenderOrSelect | empty)
       .map((chunk) => Message.from(chunk, null));
 
   IcuParser() {

@@ -72,6 +72,19 @@ class MessageGeneration {
   /// for the [translations] in [locale] and put it in [targetDir].
   void generateIndividualMessageFile(String basicLocale,
       Iterable<TranslatedMessage> translations, String targetDir) {
+    final content = contentForLocale(basicLocale, translations);
+
+    // To preserve compatibility, we don't use the canonical version of the
+    // locale in the file name.
+    final filename = path.join(
+        targetDir, '${generatedFilePrefix}messages_$basicLocale.dart');
+    File(filename).writeAsStringSync(content);
+  }
+
+  /// Generate a string that containts the dart code
+  /// with the [translations] in [locale].
+  String contentForLocale(
+      String basicLocale, Iterable<TranslatedMessage> translations) {
     clearOutput();
     var locale = new MainMessage()
         .escapeAndValidateString(Intl.canonicalizedLocale(basicLocale));
@@ -92,11 +105,7 @@ class MessageGeneration {
 
     writeTranslations(usableTranslations, locale);
 
-    // To preserve compatibility, we don't use the canonical version of the
-    // locale in the file name.
-    var filename = path.join(
-        targetDir, "${generatedFilePrefix}messages_$basicLocale.dart");
-    new File(filename).writeAsStringSync(output.toString());
+    return '$output';
   }
 
   /// Write out the translated forms.
@@ -325,8 +334,8 @@ import '${generatedFilePrefix}messages_all.dart' show evaluateJsonTemplate;
   void writeTranslations(
       Iterable<TranslatedMessage> usableTranslations, String locale) {
     output.write(r"""
-  var _messages;
-  get messages => _messages ??=
+  Map<String, dynamic> _messages;
+  Map<String, dynamic> get messages => _messages ??=
       const JsonDecoder().convert(messageText) as Map<String, dynamic>;
 """);
 
@@ -362,10 +371,10 @@ String evaluateJsonTemplate(dynamic input, List<dynamic> args) {
     return "\${args[input]}";
   }
 
-  List<dynamic> template = input;
+  var template = input as List<dynamic>;
   var messageName = template.first;
   if (messageName == "Intl.plural") {
-     var howMany = args[template[1]];
+     var howMany = args[template[1] as int] as num;
      return evaluateJsonTemplate(
          Intl.pluralLogic(
              howMany,
@@ -378,7 +387,7 @@ String evaluateJsonTemplate(dynamic input, List<dynamic> args) {
          args);
    }
    if (messageName == "Intl.gender") {
-     var gender = args[template[1]];
+     var gender = args[template[1] as int] as String;
      return evaluateJsonTemplate(
          Intl.genderLogic(
              gender,
@@ -388,8 +397,8 @@ String evaluateJsonTemplate(dynamic input, List<dynamic> args) {
          args);
    }
    if (messageName == "Intl.select") {
-     var select = args[template[1]];
-     var choices = template[2];
+     var select = args[template[1] as int];
+     var choices = template[2] as Map<Object, Object>;
      return evaluateJsonTemplate(Intl.selectLogic(select, choices), args);
    }
 
